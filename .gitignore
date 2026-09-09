@@ -70,3 +70,6 @@ htmlcov/
 *.tar.xz
 *.tar.zst
 ```
+**/*.rs.bk
+```
+**/*.png
