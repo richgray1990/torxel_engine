@@ -6,10 +6,10 @@ resolver = "2"
 
 [dependencies]
 
-bevy = { version = "0.14", features = ["dynamic_linking"] } # Bevy 0.14 - стабильная версия с отличным рендерером
-avian3d = "0.1" # Avian3D - современная физика для Bevy (аналог PhysX/Bullet)
+bevy = { version = "0.19.1", features = ["dynamic_linking"] }
+avian3d = "0.7" # Avian3D - современная физика для Bevy (аналог PhysX/Bullet)
 noise = "0.9"   # Шум Перлина/Simplex для процедурной генерации тора
-glam = "0.29"   # Векторная математика (уже есть в Bevy, но явно укажем для удобства)
+glam = "0.33.7"   # Векторная математика (уже есть в Bevy, но явно укажем для удобства)
 
 
 # Dev профиль: быстрая компиляция для итераций
