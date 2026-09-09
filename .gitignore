@@ -63,4 +63,11 @@ htmlcov/
 *.tar.bz2
 *.tar.xz
 *.tar.zst
-```
+
+# Project specific ignores
+**/*.png
+**/*.jpg
+**/*.jpeg
+**/*.wav
+**/*.mp3
+**/*.ogg
