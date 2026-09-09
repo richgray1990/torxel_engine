@@ -88,3 +88,6 @@ Cargo.lock
 *.tar.xz
 *.tar.zst
 ```
+**/*.rs.bk
+```
+**/*.png
