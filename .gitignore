@@ -1,0 +1,15 @@
+# Сборка
+/target/
+Cargo.lock
+
+# Кэш ассетов Bevy (генерируется автоматически)
+/assets/.cache/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Логи
+*.log
