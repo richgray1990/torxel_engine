@@ -1,15 +1,42 @@
-# Сборка
-/target/
+```
+# Rust-specific ignores
+target/
 Cargo.lock
 
-# Кэш ассетов Bevy (генерируется автоматически)
-/assets/.cache/
+# Dependencies
+vendor/
 
-# IDE
+# Build artifacts
+**/*.rs.bk
+**/*.bk
+
+# Logs and temp files
+*.log
+*.tmp
+
+# Environment
+.env
+.env.local
+.env.*
+
+# Editors
 .vscode/
 .idea/
 *.swp
 *.swo
 
-# Логи
-*.log
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Coverage
+coverage/
+htmlcov/
+.coverage
+
+# Cache directories
+**/__pycache__/
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+```
