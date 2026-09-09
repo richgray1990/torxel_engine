@@ -8,6 +8,7 @@
 
 use bevy::prelude::*;
 use bevy_egui::EguiPlugin;
+use bevy::log::{info, LogPlugin};
 
 // Модули движка
 mod core;
@@ -15,6 +16,7 @@ mod utils;
 mod generation;
 mod serialization;
 mod ui;
+mod render;
 
 use core::{ChunkManager, Cell, Material};
 use ui::{MainMenuPlugin, AppState, MainMenuState};
@@ -22,7 +24,7 @@ use ui::{MainMenuPlugin, AppState, MainMenuState};
 fn main() {
     App::new()
         // Основные плагины Bevy
-        .add_plugins(DefaultPlugins.set(bevy::log::LogPlugin {
+        .add_plugins(DefaultPlugins.set(LogPlugin {
             level: bevy::log::Level::INFO,
             filter: "torxel_engine=info".to_string(),
             custom_layer: None,
