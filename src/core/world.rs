@@ -1,47 +1,60 @@
 //! Toroidal World - управление миром с циклической топологией.
 //! 
-//! Мир представляет собой тор (бублик) в 3D:
-//! - При выходе за границу по любой оси происходит переход на противоположную сторону
-//! - Используется модулярная арифметика для всех координат
-//! - ChunkManager управляет чанками через Resource в Bevy ECS
+//! Архитектурные решения:
+//! - Мир - тор по осям XZ (горизонтальная бесконечность)
+//! - Y ось фиксирована: 0..64 (один слой чанков по высоте)
+//! - Размер мира XZ: переменный, по умолчанию 16×16 чанков
+//! - В памяти одновременно: ~36-100 чанков (стриминг по камере)
+//! - ChunkManager управляет памятью через Resource в Bevy ECS
 
 use std::collections::HashMap;
 use bevy::prelude::*;
 
-use crate::core::{Chunk, ChunkPos, Cell, CHUNK_SIZE};
+use crate::core::{Chunk, ChunkPos, Cell, CHUNK_SIZE_XZ, CHUNK_SIZE_Y};
 use crate::utils::torus_math;
 
-/// Размер мира в чанках по каждой оси (должен быть степенью двойки)
-pub const WORLD_SIZE_CHUNKS: usize = 16;
-/// Размер мира в ячейках
-pub const WORLD_SIZE_CELLS: usize = WORLD_SIZE_CHUNKS * CHUNK_SIZE;
-/// Маска для быстрого вычисления модуля координат
-pub const WORLD_MASK_CELLS: usize = WORLD_SIZE_CELLS - 1;
-pub const WORLD_MASK_CHUNKS: usize = WORLD_SIZE_CHUNKS - 1;
+/// Размер мира в чанках по осям X и Z (по умолчанию 16×16 = 256×256 блоков)
+pub const WORLD_SIZE_CHUNKS_XZ: usize = 16;
+/// Размер мира в чанках по оси Y (всегда 1, т.к. высота фиксирована 64 блока)
+pub const WORLD_SIZE_CHUNKS_Y: usize = 1;
+/// Размер мира в ячейках по XZ
+pub const WORLD_SIZE_CELLS_XZ: usize = WORLD_SIZE_CHUNKS_XZ * CHUNK_SIZE_XZ;
+/// Размер мира в ячейках по Y
+pub const WORLD_SIZE_CELLS_Y: usize = WORLD_SIZE_CHUNKS_Y * CHUNK_SIZE_Y;
+/// Маска для быстрого вычисления модуля координат XZ
+pub const WORLD_MASK_CELLS_XZ: usize = WORLD_SIZE_CELLS_XZ - 1;
+pub const WORLD_MASK_CHUNKS_XZ: usize = WORLD_SIZE_CHUNKS_XZ - 1;
 
 /// Проверка размеров
 const _: () = assert!(
-    WORLD_SIZE_CHUNKS.is_power_of_two(),
-    "WORLD_SIZE_CHUNKS должен быть степенью двойки"
+    WORLD_SIZE_CHUNKS_XZ.is_power_of_two(),
+    "WORLD_SIZE_CHUNKS_XZ должен быть степенью двойки"
 );
+
+/// Максимальное количество чанков в памяти одновременно
+/// Рассчитано из опыта Godot прототипа:
+/// - Видимо: 12×12 = 144 чанка (при дальности 128 блоков)
+/// - В памяти: 36-100 чанков (оптимизированный стриминг)
+pub const MAX_ACTIVE_CHUNKS: usize = 100;
 
 /// Менеджер чанков - Resource для управления памятью мира.
 /// 
 /// # Архитектурные принципы:
-/// - Хранит чанки в HashMap для разреженных миров или Vec для плотных
-/// - Предоставляет пул чанков для переиспользования памяти
-/// - Все операции с координатами используют торический wrapping
+/// - HashMap для гибкого доступа (будущий стриминг v3)
+/// - Пул чанков для переиспользования памяти (Zero-Allocation)
+/// - Торический wrapping на уровне мира (XZ плоскость)
+/// - Статистика для отладки и оптимизации
 #[derive(Resource)]
 pub struct ChunkManager {
     /// Карта чанков: ключ = ChunkPos::to_key(), значение = Chunk
     chunks: HashMap<u64, Chunk>,
-    
+
     /// Пул пустых чанков для переиспользования (оптимизация аллокаций)
     chunk_pool: Vec<Chunk>,
-    
-    /// Размер мира в чанках
-    world_size_chunks: usize,
-    
+
+    /// Размер мира в чанках (XZ)
+    world_size_chunks_xz: usize,
+
     /// Статистика
     stats: ChunkManagerStats,
 }
@@ -52,6 +65,7 @@ struct ChunkManagerStats {
     active_chunks: usize,
     pooled_chunks: usize,
     cells_accessed: u64,
+    peak_memory_mb: f64,
 }
 
 impl ChunkManager {
