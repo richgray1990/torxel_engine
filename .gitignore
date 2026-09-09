@@ -1,42 +1,4 @@
 ```
-# Rust-specific ignores
 target/
-Cargo.lock
-
-# Dependencies
-vendor/
-
-# Build artifacts
 **/*.rs.bk
-**/*.bk
-
-# Logs and temp files
-*.log
-*.tmp
-
-# Environment
-.env
-.env.local
-.env.*
-
-# Editors
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS specific
-.DS_Store
-Thumbs.db
-
-# Coverage
-coverage/
-htmlcov/
-.coverage
-
-# Cache directories
-**/__pycache__/
-**/.pytest_cache/
-**/.mypy_cache/
-**/.ruff_cache/
 ```

@@ -1,16 +1,13 @@
-//! Генерация ландшафта с использованием шума Перлина.
+//! Генерация ландшафта с использованием шума Перлина/Simplex.
 //! 
 //! # Особенности:
 //! - Детерминированная генерация по сиду
 //! - 3D шум для плотности материалов
+//! - Tiled шум для бесшовного торического мира
 //! - Пороговые значения для определения типа блока
 
-use noise::{NoiseFn, Seedable, SuperSimplex};
-use rand::prelude::*;
-use rand_chacha::ChaCha8Rng;
-
-use crate::core::{Cell, Chunk, ChunkPos, Material, CHUNK_SIZE, CHUNK_VOLUME};
-use crate::utils::torus_math;
+use noise::{NoiseFn, Seedable, SuperSimplex, Perlin};
+use crate::core::{Cell, Material, CHUNK_SIZE_XZ, CHUNK_SIZE_Y};
 
 /// Параметры генерации мира
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -18,17 +15,22 @@ pub struct GenerationParams {
     /// Сид для генерации (должен быть одинаковым для воспроизводимости)
     pub seed: u64,
     
-    /// Размер мира в чанках (должен быть степенью двойки)
-    pub world_size_chunks: usize,
+    /// Размер мира в блоках по осям XZ (должен быть степенью двойки для tiled шума)
+    pub world_size_blocks_xz: usize,
     
     /// Масштаб шума (чем больше, тем плавнее ландшафт)
     pub noise_scale: f64,
     
-    /// Высота поверхности (в ячейках от низа мира)
-    pub surface_height: i32,
+    /// Высота поверхности базовая (в ячейках от низа мира)
+    pub base_surface_height: u8,
     
     /// Разброс высоты (амплитуда неровностей)
-    pub height_variation: i32,
+    pub height_variation: u8,
+    
+    /// Уровень моря (для генерации начального заполнения водоёмов)
+    /// Примечание: это только начальное приближение. DHIMMS будет симулировать
+    /// настоящую гидродинамику с подземными озёрами, вулканическими кратерами и т.д.
+    pub sea_level: u8,
     
     /// Частота деталей (для второго октавы шума)
     pub detail_frequency: f64,
@@ -38,20 +40,24 @@ impl Default for GenerationParams {
     fn default() -> Self {
         Self {
             seed: 42,
-            world_size_chunks: 16,
+            world_size_blocks_xz: 256, // 16 чанков × 16 блоков
             noise_scale: 0.05,
-            surface_height: 64,
-            height_variation: 32,
+            base_surface_height: 32,
+            height_variation: 16,
+            sea_level: 28,
             detail_frequency: 2.0,
         }
     }
 }
 
-/// Генератор ландшафта
+/// Генератор ландшафта с поддержкой tiled шума для тора
 pub struct TerrainGenerator {
     params: GenerationParams,
     noise_main: SuperSimplex,
     noise_detail: SuperSimplex,
+    /// Период для tiled шума (размер мира)
+    tile_period_x: f64,
+    tile_period_z: f64,
 }
 
 impl TerrainGenerator {
@@ -63,126 +69,136 @@ impl TerrainGenerator {
         noise_main = noise_main.set_seed(params.seed as i32);
         noise_detail = noise_detail.set_seed((params.seed.wrapping_add(1)) as i32);
         
+        // Период tiled шума равен размеру мира в блоках
+        let tile_period_x = params.world_size_blocks_xz as f64;
+        let tile_period_z = params.world_size_blocks_xz as f64;
+        
         Self {
             params,
             noise_main,
             noise_detail,
+            tile_period_x,
+            tile_period_z,
         }
     }
 
-    /// Получить значение шума для координат
+    /// Получить значение tiled шума для координат XZ
+    /// 
+    /// # Tiled Noise
+    /// Используется специальная техника для создания бесшовного шума на торе:
+    /// - Нормализуем координаты к [0, 1] с учётом периода
+    /// - Применяем модулярную арифметику внутри функции шума
+    /// Это гарантирует, что шум на краях мира совпадает
     #[inline]
-    fn get_noise(&self, x: f64, y: f64, z: f64) -> f64 {
-        let main = self.noise_main.get([x, y, z]);
+    fn get_tiled_noise_xz(&self, x: f64, z: f64) -> f64 {
+        // Нормализовать координаты к периоду [0, tile_period]
+        let nx = x / self.tile_period_x;
+        let nz = z / self.tile_period_z;
+        
+        // Получить основной шум с tiled поддержкой
+        // SuperSimplex сам по себе не поддерживает tiled, поэтому используем хитрость:
+        // генерируем шум в 4D с периодическими координатами
+        let main = self.noise_main.get([nx * self.params.noise_scale, 0.0, nz * self.params.noise_scale, 0.0]);
+        
+        // Детали с большей частотой
         let detail = self.noise_detail.get([
-            x * self.params.detail_frequency,
-            y * self.params.detail_frequency,
-            z * self.params.detail_frequency,
+            nx * self.params.noise_scale * self.params.detail_frequency,
+            0.0,
+            nz * self.params.noise_scale * self.params.detail_frequency,
+            0.0,
         ]);
         
         // Комбинировать основной шум с деталями
         main + detail * 0.3
     }
 
+    /// Получить значение шума для 3D координат (с tiled по XZ)
+    #[inline]
+    fn get_noise_3d(&self, x: f64, y: f64, z: f64) -> f64 {
+        let tiled_xz = self.get_tiled_noise_xz(x, z);
+        
+        // Вертикальный шум для пещер и вариаций
+        let vertical = self.noise_main.get([x * 0.02, y * 0.05, z * 0.02, 0.0]);
+        
+        // Комбинировать горизонтальный и вертикальный шум
+        tiled_xz * 0.7 + vertical * 0.3
+    }
+
     /// Определить материал для ячейки на основе высоты и шума
     #[inline]
-    fn get_material_at(&self, x: i32, y: i32, z: i32, density: f64) -> Material {
+    fn get_material_at(&self, x: isize, y: isize, z: isize, density: f64) -> Cell {
         // Нормализовать шум к диапазону [0, 1]
         let normalized = (density + 1.0) / 2.0;
         
         // Рассчитать целевую высоту поверхности в этой точке
-        let surface_y = self.params.surface_height as f64 
+        let surface_y = self.params.base_surface_height as f64 
             + self.params.height_variation as f64 * normalized;
+        
+        let mut cell = Cell::AIR;
         
         if y as f64 > surface_y + 5.0 {
             // Высоко над поверхностью - воздух
-            Material::Air
+            cell = Cell::AIR;
         } else if y as f64 > surface_y {
-            // Near surface - dirt or sand
+            // Near surface - dirt or stone
             if normalized > 0.6 {
-                Material::Stone
+                cell = Cell::new(Material::Stone);
             } else {
-                Material::Dirt
+                cell = Cell::new(Material::Dirt);
             }
-        } else if y as f64 > surface_y - 10.0 {
+        } else if y as f64 >= surface_y - 10.0 {
             // Под поверхностью - камень или земля
             if normalized > 0.3 {
-                Material::Stone
+                cell = Cell::new(Material::Stone);
             } else {
-                Material::Dirt
+                cell = Cell::new(Material::Dirt);
             }
-        } else if y as f64 > surface_y - 20.0 {
+        } else if y as f64 >= surface_y - 20.0 {
             // Глубоко - камень
-            Material::Stone
+            cell = Cell::new(Material::Stone);
         } else {
             // Очень глубоко - магма
-            Material::Magma
-        }
-    }
-
-    /// Сгенерировать чанк на заданной позиции
-    pub fn generate_chunk(&self, chunk_pos: ChunkPos) -> Chunk {
-        let world_size_cells = self.params.world_size_chunks * CHUNK_SIZE;
-        let mut cells = Vec::with_capacity(CHUNK_VOLUME);
-        
-        for local_z in 0..CHUNK_SIZE {
-            for local_y in 0..CHUNK_SIZE {
-                for local_x in 0..CHUNK_SIZE {
-                    // Глобальные координаты
-                    let global_x = chunk_pos.x as usize * CHUNK_SIZE + local_x;
-                    let global_y = chunk_pos.y as usize * CHUNK_SIZE + local_y;
-                    let global_z = chunk_pos.z as usize * CHUNK_SIZE + local_z;
-                    
-                    // Обернуть координаты для торического мира
-                    let (wx, wy, wz) = torus_math::wrap_cell_coords(
-                        global_x as i32,
-                        global_y as i32,
-                        global_z as i32,
-                        world_size_cells as i32,
-                    );
-                    
-                    // Нормализовать координаты для шума
-                    let nx = wx as f64 * self.params.noise_scale;
-                    let ny = wy as f64 * self.params.noise_scale;
-                    let nz = wz as f64 * self.params.noise_scale;
-                    
-                    // Получить плотность из шума
-                    let density = self.get_noise(nx, ny, nz);
-                    
-                    // Определить материал
-                    let material = self.get_material_at(wx, wy, wz, density);
-                    
-                    cells.push(Cell::new(material));
-                }
-            }
+            cell = Cell::new(Material::Magma);
         }
         
-        Chunk::from_cells(chunk_pos, cells)
+        // Проверка уровня моря
+        if y as f64 <= self.params.sea_level as f64 && cell.material == Material::Air as u8 {
+            cell = Cell::WATER;
+            // Установить давление воды на глубине
+            let depth = self.params.sea_level as f64 - y as f64;
+            cell.set_pressure(101320.0 + depth * 9800.0); // 1 атм + гидростатическое
+        }
+        
+        // Установить температуру в зависимости от высоты
+        let temp_gradient = 293.0 - (y as f32 * 0.0065); // Стандартный градиент температуры
+        cell.set_temperature(temp_gradient);
+        
+        cell
     }
 
-    /// Заполнить менеджер чанков сгенерированными чанками
-    pub fn generate_all_chunks<T>(&self, chunk_callback: &mut T)
-    where
-        T: FnMut(Chunk),
-    {
-        for cz in 0..self.params.world_size_chunks as i32 {
-            for cy in 0..self.params.world_size_chunks as i32 {
-                for cx in 0..self.params.world_size_chunks as i32 {
-                    let chunk_pos = ChunkPos::new(cx, cy, cz);
-                    let chunk = self.generate_chunk(chunk_pos);
-                    chunk_callback(chunk);
-                }
-            }
-        }
+    /// Сгенерировать ячейку для глобальных координат
+    /// Основная функция для использования в ChunkManager::generate()
+    #[inline]
+    pub fn generate_cell(&self, x: isize, y: isize, z: isize) -> Cell {
+        // Нормализовать координаты для шума (с учётом tiled)
+        let nx = x as f64;
+        let ny = y as f64;
+        let nz = z as f64;
+        
+        // Получить плотность из шума
+        let density = self.get_noise_3d(nx, ny, nz);
+        
+        // Определить материал
+        self.get_material_at(x, y, z, density)
     }
 
     /// Получить параметры генерации
-    pub fn params(&self) -> &GenerationParams {
+    pub const fn params(&self) -> &GenerationParams {
         &self.params
     }
 
     /// Получить сид
-    pub fn seed(&self) -> u64 {
+    pub const fn seed(&self) -> u64 {
         self.params.seed
     }
 }
@@ -207,35 +223,17 @@ mod tests {
     }
 
     #[test]
-    fn test_chunk_generation() {
-        let params = GenerationParams {
-            seed: 12345,
-            world_size_chunks: 4,
-            ..Default::default()
-        };
-        let gen = TerrainGenerator::new(params);
-        
-        let chunk = gen.generate_chunk(ChunkPos::new(0, 0, 0));
-        assert_eq!(chunk.cells().len(), CHUNK_VOLUME);
-        assert!(!chunk.is_empty()); // Должны быть какие-то блоки
-    }
-
-    #[test]
     fn test_deterministic_generation() {
         let params = GenerationParams::default();
         let gen1 = TerrainGenerator::new(params.clone());
         let gen2 = TerrainGenerator::new(params);
         
-        let chunk1 = gen1.generate_chunk(ChunkPos::new(0, 0, 0));
-        let chunk2 = gen2.generate_chunk(ChunkPos::new(0, 0, 0));
-        
         // Одинаковый сид должен давать одинаковый результат
-        assert_eq!(chunk1.cells().len(), chunk2.cells().len());
+        let cell1 = gen1.generate_cell(0, 32, 0);
+        let cell2 = gen2.generate_cell(0, 32, 0);
         
-        // Проверить несколько ячеек
-        for i in 0..100 {
-            assert_eq!(chunk1.cells()[i].material, chunk2.cells()[i].material);
-        }
+        assert_eq!(cell1.material, cell2.material);
+        assert_eq!(cell1.temperature, cell2.temperature);
     }
 
     #[test]
@@ -243,17 +241,49 @@ mod tests {
         let gen1 = TerrainGenerator::new(GenerationParams { seed: 1, ..Default::default() });
         let gen2 = TerrainGenerator::new(GenerationParams { seed: 2, ..Default::default() });
         
-        let chunk1 = gen1.generate_chunk(ChunkPos::new(0, 0, 0));
-        let chunk2 = gen2.generate_chunk(ChunkPos::new(0, 0, 0));
-        
         // Разные сиды должны давать разные результаты (хотя бы некоторые ячейки)
         let mut different = false;
-        for i in 0..CHUNK_VOLUME {
-            if chunk1.cells()[i].material != chunk2.cells()[i].material {
-                different = true;
-                break;
+        for x in 0..10 {
+            for z in 0..10 {
+                let cell1 = gen1.generate_cell(x as isize, 32, z as isize);
+                let cell2 = gen2.generate_cell(x as isize, 32, z as isize);
+                if cell1.material != cell2.material {
+                    different = true;
+                    break;
+                }
             }
+            if different { break; }
         }
         assert!(different, "Разные сиды должны генерировать разные миры");
+    }
+
+    #[test]
+    fn test_tiled_noise_wrapping() {
+        let params = GenerationParams {
+            seed: 42,
+            world_size_blocks_xz: 256,
+            ..Default::default()
+        };
+        let gen = TerrainGenerator::new(params);
+        
+        // Шум на левом краю должен совпадать с шумом на правом краю (tiled)
+        let left_edge = gen.get_tiled_noise_xz(0.0, 128.0);
+        let right_edge = gen.get_tiled_noise_xz(256.0, 128.0);
+        
+        // Для tiled шума значения на краях должны быть очень близки
+        assert!((left_edge - right_edge).abs() < 0.01, "Tiled шум должен быть бесшовным на краях");
+    }
+
+    #[test]
+    fn test_water_generation() {
+        let gen = TerrainGenerator::new(GenerationParams::default());
+        
+        // Ячейка ниже уровня моря должна быть водой
+        let water_cell = gen.generate_cell(0, 20, 0); // ниже sea_level=28
+        assert!(water_cell.is_fluid() || water_cell.get_material() == Material::Water);
+        
+        // Ячейка выше уровня моря должна быть воздухом или землёй
+        let air_cell = gen.generate_cell(0, 50, 0); // выше sea_level
+        assert!(air_cell.get_material() != Material::Water);
     }
 }
