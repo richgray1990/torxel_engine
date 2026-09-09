@@ -9,7 +9,7 @@ use std::io::{Read, Write};
 use std::fs::File;
 use std::path::{Path, PathBuf};
 
-use crate::core::{Chunk, ChunkPos, Cell, CHUNK_SIZE, WORLD_SIZE_CHUNKS};
+use crate::core::{Chunk, ChunkPos, Cell, CHUNK_SIZE_XZ, WORLD_SIZE_CHUNKS_XZ};
 use crate::generation::GenerationParams;
 
 /// Магическое число для идентификации файлов сохранений
@@ -146,7 +146,7 @@ impl SerializedChunk {
     }
 
     pub fn to_chunk(&self) -> Result<Chunk, SaveError> {
-        if self.cells.len() != CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE * std::mem::size_of::<Cell>() {
+        if self.cells.len() != CHUNK_SIZE_XZ * CHUNK_SIZE_XZ * 64 * std::mem::size_of::<Cell>() {
             return Err(SaveError::InvalidChunkSize(self.cells.len()));
         }
         
