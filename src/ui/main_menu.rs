@@ -7,7 +7,6 @@
 
 use bevy::prelude::*;
 use bevy_egui::{EguiContexts, egui};
-use bevy::app::States;
 use bevy::log::info;
 
 use crate::core::ChunkManager;
@@ -83,7 +82,7 @@ fn setup_main_menu(mut commands: Commands) {
 /// Очистить UI главного меню при выходе
 fn cleanup_main_menu(mut commands: Commands, query: Query<Entity, With<MainMenuUI>>) {
     for entity in query.iter() {
-        commands.entity(entity).despawn_recursive();
+        commands.entity(entity).despawn();
     }
 }
 
@@ -96,7 +95,7 @@ fn main_menu_ui(
 ) {
     let ctx = contexts.ctx_mut();
     
-    egui::CentralPanel::default().show(ctx, |ui| {
+    egui::CentralPanel::default().show(&ctx, |ui| {
         ui.vertical_centered(|ui| {
             ui.add_space(50.0);
             

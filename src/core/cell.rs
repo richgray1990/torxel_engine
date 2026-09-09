@@ -219,6 +219,23 @@ impl Cell {
         _padding: [0; 1],
     };
 
+    /// Ячейка камня
+    pub const STONE: Self = Self {
+        material: Material::Stone as u8,
+        flags: CellFlags::SOLID.0,
+        excell_liquid: 0,
+        fluid_depth: 0,
+        temperature: 2930,
+        pressure: 0,
+        velocity_x: 0,
+        velocity_y: 0,
+        velocity_z: 0,
+        density: 512, // высокая плотность
+        heat_capacity: 1200, // высокая теплоёмкость
+        phase_state: 2, // жидкая фаза
+        _padding: [0; 1],
+    };
+
     /// Ячейка воды (для DHIMMS)
     pub const WATER: Self = Self {
         material: Material::Water as u8,

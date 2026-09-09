@@ -177,7 +177,8 @@ impl Chunk {
         debug_assert!(x < CHUNK_SIZE_XZ && y < CHUNK_SIZE_Y && z < CHUNK_SIZE_XZ);
         self.is_dirty = true;
         self.update_y_range(y as u8);
-        &mut self.cells[self.index(x, y, z)]
+        let idx = self.index(x, y, z);
+        &mut self.cells[idx]
     }
 
     /// Установить ячейку по локальным координатам
@@ -217,7 +218,9 @@ impl Chunk {
     #[inline]
     pub fn get_mut_wrapped(&mut self, x: isize, y: isize, z: isize) -> &mut Cell {
         self.is_dirty = true;
-        &mut self.cells[self.index_wrapped(x, y, z)]
+        // Вычисляем индекс заранее, чтобы избежать конфликта борроу
+        let idx = self.index_wrapped(x, y, z);
+        &mut self.cells[idx]
     }
 
     /// Обновить диапазон Y при изменении ячейки

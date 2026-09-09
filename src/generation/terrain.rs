@@ -63,11 +63,8 @@ pub struct TerrainGenerator {
 impl TerrainGenerator {
     /// Создать новый генератор с заданными параметрами
     pub fn new(params: GenerationParams) -> Self {
-        let mut noise_main = SuperSimplex::new();
-        let mut noise_detail = SuperSimplex::new();
-        
-        noise_main = noise_main.set_seed(params.seed as i32);
-        noise_detail = noise_detail.set_seed((params.seed.wrapping_add(1)) as i32);
+        let mut noise_main = SuperSimplex::new(params.seed as u32);
+        let mut noise_detail = SuperSimplex::new(params.seed as u32);
         
         // Период tiled шума равен размеру мира в блоках
         let tile_period_x = params.world_size_blocks_xz as f64;
@@ -98,14 +95,13 @@ impl TerrainGenerator {
         // Получить основной шум с tiled поддержкой
         // SuperSimplex сам по себе не поддерживает tiled, поэтому используем хитрость:
         // генерируем шум в 4D с периодическими координатами
-        let main = self.noise_main.get([nx * self.params.noise_scale, 0.0, nz * self.params.noise_scale, 0.0]);
+        let main = self.noise_main.get([nx * self.params.noise_scale, 0.0, nz * self.params.noise_scale]);
         
         // Детали с большей частотой
         let detail = self.noise_detail.get([
             nx * self.params.noise_scale * self.params.detail_frequency,
             0.0,
             nz * self.params.noise_scale * self.params.detail_frequency,
-            0.0,
         ]);
         
         // Комбинировать основной шум с деталями
@@ -118,7 +114,7 @@ impl TerrainGenerator {
         let tiled_xz = self.get_tiled_noise_xz(x, z);
         
         // Вертикальный шум для пещер и вариаций
-        let vertical = self.noise_main.get([x * 0.02, y * 0.05, z * 0.02, 0.0]);
+        let vertical = self.noise_main.get([x * 0.02, y * 0.05, z * 0.02]);
         
         // Комбинировать горизонтальный и вертикальный шум
         tiled_xz * 0.7 + vertical * 0.3

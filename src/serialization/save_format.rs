@@ -122,7 +122,6 @@ impl SaveHeader {
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct SerializedChunk {
     pub pos_x: i32,
-    pub pos_y: i32,
     pub pos_z: i32,
     pub cells: Vec<u8>, // Сырые байты ячеек (16 байт на ячейку)
 }
@@ -139,7 +138,6 @@ impl SerializedChunk {
         
         Self {
             pos_x: chunk.pos.x,
-            pos_y: chunk.pos.y,
             pos_z: chunk.pos.z,
             cells,
         }
@@ -150,7 +148,7 @@ impl SerializedChunk {
             return Err(SaveError::InvalidChunkSize(self.cells.len()));
         }
         
-        let pos = ChunkPos::new(self.pos_x, self.pos_y, self.pos_z);
+        let pos = ChunkPos::new(self.pos_x, self.pos_z);
         
         // Восстановить ячейки из сырых байтов
         let cells = unsafe {

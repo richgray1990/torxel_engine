@@ -72,9 +72,9 @@ impl ChunkManager {
     /// Создать новый менеджер чанков
     pub fn new() -> Self {
         Self {
-            chunks: HashMap::with_capacity(WORLD_SIZE_CHUNKS * WORLD_SIZE_CHUNKS * WORLD_SIZE_CHUNKS),
+            chunks: HashMap::with_capacity(WORLD_SIZE_CHUNKS_XZ * WORLD_SIZE_CHUNKS_XZ),
             chunk_pool: Vec::with_capacity(64),
-            world_size_chunks: WORLD_SIZE_CHUNKS,
+            world_size_chunks_xz: WORLD_SIZE_CHUNKS_XZ,
             stats: ChunkManagerStats::default(),
         }
     }
@@ -82,22 +82,21 @@ impl ChunkManager {
     /// Получить позицию чанка из глобальных координат ячейки с торическим wrapping
     #[inline]
     pub fn global_to_chunk_pos(&self, x: i32, y: i32, z: i32) -> ChunkPos {
-        let (wx, wy, wz) = torus_math::wrap_cell_coords(x, y, z, WORLD_SIZE_CELLS as i32);
+        let (wx, wy, wz) = torus_math::wrap_cell_coords(x, y, z, WORLD_SIZE_CELLS_XZ as i32);
         ChunkPos::new(
-            wx / CHUNK_SIZE as i32,
-            wy / CHUNK_SIZE as i32,
-            wz / CHUNK_SIZE as i32,
+            wx / CHUNK_SIZE_XZ as i32,
+            wy / CHUNK_SIZE_XZ as i32
         )
     }
 
     /// Получить локальные координаты в чанке из глобальных координат
     #[inline]
     pub fn global_to_local(&self, x: i32, y: i32, z: i32) -> (usize, usize, usize) {
-        let (wx, wy, wz) = torus_math::wrap_cell_coords(x, y, z, WORLD_SIZE_CELLS as i32);
+        let (wx, wy, wz) = torus_math::wrap_cell_coords(x, y, z, WORLD_SIZE_CELLS_XZ as i32);
         (
-            (wx % CHUNK_SIZE as i32) as usize,
-            (wy % CHUNK_SIZE as i32) as usize,
-            (wz % CHUNK_SIZE as i32) as usize,
+            (wx % CHUNK_SIZE_XZ as i32) as usize,
+            (wy % CHUNK_SIZE_XZ as i32) as usize,
+            wz as usize
         )
     }
 
@@ -175,11 +174,10 @@ impl ChunkManager {
     fn normalize_chunk_pos(&self, pos: ChunkPos) -> ChunkPos {
         let (nx, ny, nz) = torus_math::wrap_chunk_coords(
             pos.x, 
-            pos.y, 
             pos.z, 
-            self.world_size_chunks as i32
+            self.world_size_chunks_xz as i32
         );
-        ChunkPos::new(nx, ny, nz)
+        ChunkPos::new(nx, ny)
     }
 
     /// Удалить чанк и вернуть в пул
@@ -291,7 +289,7 @@ mod tests {
     fn test_toroidal_wrapping() {
         let mut manager = ChunkManager::new();
         
-        let max_coord = (WORLD_SIZE_CELLS - 1) as i32;
+        let max_coord = (WORLD_SIZE_CELLS_XZ - 1) as i32;
         
         // Установить ячейку на границе мира
         manager.set_cell(max_coord, max_coord, max_coord, Cell::new(crate::core::Material::Water));

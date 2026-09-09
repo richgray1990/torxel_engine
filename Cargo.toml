@@ -6,19 +6,7 @@ resolver = "2"
 
 [dependencies]
 # Core engine
-bevy = { version = "0.19.1", default-features = false, features = [
-    "bevy_asset",
-    "bevy_winit",
-    "bevy_render",
-    "bevy_core_pipeline",
-    "bevy_sprite",
-    "bevy_ui",
-    "bevy_pbr",
-    "bevy_text",
-    "bevy_gizmos",
-    "multi_threaded",
-    "sysinfo_plugin",
-] }
+bevy = { version = "0.19.1" }
 
 # UI для главного меню и редактора
 bevy_egui = "0.42"
