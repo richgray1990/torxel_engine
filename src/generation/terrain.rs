@@ -27,8 +27,10 @@ pub struct GenerationParams {
     /// Разброс высоты (амплитуда неровностей)
     pub height_variation: u8,
     
-    /// Уровень воды (0-255)
-    pub water_level: u8,
+    /// Уровень моря (для генерации начального заполнения водоёмов)
+    /// Примечание: это только начальное приближение. DHIMMS будет симулировать
+    /// настоящую гидродинамику с подземными озёрами, вулканическими кратерами и т.д.
+    pub sea_level: u8,
     
     /// Частота деталей (для второго октавы шума)
     pub detail_frequency: f64,
@@ -42,7 +44,7 @@ impl Default for GenerationParams {
             noise_scale: 0.05,
             base_surface_height: 32,
             height_variation: 16,
-            water_level: 28,
+            sea_level: 28,
             detail_frequency: 2.0,
         }
     }
@@ -159,11 +161,11 @@ impl TerrainGenerator {
             cell = Cell::new(Material::Magma);
         }
         
-        // Проверка уровня воды
-        if y as f64 <= self.params.water_level as f64 && cell.material == Material::Air as u8 {
+        // Проверка уровня моря
+        if y as f64 <= self.params.sea_level as f64 && cell.material == Material::Air as u8 {
             cell = Cell::WATER;
             // Установить давление воды на глубине
-            let depth = self.params.water_level as f64 - y as f64;
+            let depth = self.params.sea_level as f64 - y as f64;
             cell.set_pressure(101320.0 + depth * 9800.0); // 1 атм + гидростатическое
         }
         
@@ -276,12 +278,12 @@ mod tests {
     fn test_water_generation() {
         let gen = TerrainGenerator::new(GenerationParams::default());
         
-        // Ячейка ниже уровня воды должна быть водой
-        let water_cell = gen.generate_cell(0, 20, 0); // ниже water_level=28
+        // Ячейка ниже уровня моря должна быть водой
+        let water_cell = gen.generate_cell(0, 20, 0); // ниже sea_level=28
         assert!(water_cell.is_fluid() || water_cell.get_material() == Material::Water);
         
-        // Ячейка выше уровня воды должна быть воздухом или землёй
-        let air_cell = gen.generate_cell(0, 50, 0); // выше water_level
+        // Ячейка выше уровня моря должна быть воздухом или землёй
+        let air_cell = gen.generate_cell(0, 50, 0); // выше sea_level
         assert!(air_cell.get_material() != Material::Water);
     }
 }

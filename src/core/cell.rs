@@ -149,11 +149,12 @@ pub struct Cell {
     pub pressure: i16,
     
     /// Скорость по осям X, Y, Z в квантованных единицах
-    /// Реальная скорость = velocity * 0.1 m/s
+    /// Реальная скорость = velocity * 0.01 m/s
+    /// Диапазон: -32768..32767 (i16) для точных физических вычислений DHIMMS
     /// Для DHIMMS: инерция потока
-    pub velocity_x: i8,
-    pub velocity_y: i8,
-    pub velocity_z: i8,
+    pub velocity_x: i16,
+    pub velocity_y: i16,
+    pub velocity_z: i16,
     
     /// Плотность материала (0-255)
     /// Для расчёта массы и инерции в DHIMMS
@@ -170,12 +171,12 @@ pub struct Cell {
     /// Для фазовой динамики (лёд/вода/пар)
     pub phase_state: u8,
     
-    /// Резервные байты для выравнивания до 32 байт
-    _padding: [u8; 3],
+    /// Резервные байты для выравнивания до 48 байт
+    _padding: [u8; 1],
 }
 
 // Проверка размера на этапе компиляции
-const _: () = assert!(mem::size_of::<Cell>() == 32, "Cell должен быть ровно 32 байта");
+const _: () = assert!(mem::size_of::<Cell>() == 48, "Cell должен быть ровно 48 байт");
 
 impl Default for Cell {
     fn default() -> Self {
@@ -198,7 +199,7 @@ impl Cell {
         density: 128,
         heat_capacity: 128,
         phase_state: 0,
-        _padding: [0; 3],
+        _padding: [0; 1],
     };
 
     /// Ячейка вакуума
@@ -215,7 +216,7 @@ impl Cell {
         density: 0,
         heat_capacity: 0,
         phase_state: 0,
-        _padding: [0; 3],
+        _padding: [0; 1],
     };
 
     /// Ячейка воды (для DHIMMS)
@@ -232,7 +233,7 @@ impl Cell {
         density: 255, // высокая плотность
         heat_capacity: 200, // высокая теплоёмкость
         phase_state: 1, // жидкая фаза
-        _padding: [0; 3],
+        _padding: [0; 1],
     };
 
     /// Создать новую ячейку с заданным материалом
@@ -281,7 +282,7 @@ impl Cell {
             density,
             heat_capacity,
             phase_state: 0,
-            _padding: [0; 3],
+            _padding: [0; 1],
         }
     }
 
@@ -357,18 +358,18 @@ impl Cell {
     #[inline]
     pub fn get_velocity(&self) -> glam::Vec3 {
         glam::Vec3::new(
-            self.velocity_x as f32 * 0.1,
-            self.velocity_y as f32 * 0.1,
-            self.velocity_z as f32 * 0.1,
+            self.velocity_x as f32 * 0.01,
+            self.velocity_y as f32 * 0.01,
+            self.velocity_z as f32 * 0.01,
         )
     }
 
     /// Установить скорость (м/с, квантуется)
     #[inline]
     pub fn set_velocity(&mut self, vel: glam::Vec3) {
-        self.velocity_x = (vel.x * 10.0).clamp(-127.0, 127.0) as i8;
-        self.velocity_y = (vel.y * 10.0).clamp(-127.0, 127.0) as i8;
-        self.velocity_z = (vel.z * 10.0).clamp(-127.0, 127.0) as i8;
+        self.velocity_x = (vel.x * 100.0).clamp(-32767.0, 32767.0) as i16;
+        self.velocity_y = (vel.y * 100.0).clamp(-32767.0, 32767.0) as i16;
+        self.velocity_z = (vel.z * 100.0).clamp(-32767.0, 32767.0) as i16;
         
         let has_velocity = self.velocity_x != 0 || self.velocity_y != 0 || self.velocity_z != 0;
         let mut flags = CellFlags(self.flags);
@@ -427,7 +428,7 @@ mod tests {
 
     #[test]
     fn test_cell_size() {
-        assert_eq!(mem::size_of::<Cell>(), 32);
+        assert_eq!(mem::size_of::<Cell>(), 48);
     }
 
     #[test]
@@ -467,7 +468,7 @@ mod tests {
     fn test_velocity_squared() {
         let mut cell = Cell::default();
         cell.set_velocity(glam::Vec3::new(1.0, 2.0, 3.0));
-        // 10^2 + 20^2 + 30^2 = 100 + 400 + 900 = 1400
-        assert_eq!(cell.velocity_squared(), 1400);
+        // 100^2 + 200^2 + 300^2 = 10000 + 40000 + 90000 = 140000
+        assert_eq!(cell.velocity_squared(), 140000);
     }
 }

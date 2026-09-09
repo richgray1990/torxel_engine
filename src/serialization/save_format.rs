@@ -13,7 +13,7 @@ use crate::core::{Chunk, ChunkPos, Cell, CHUNK_SIZE, WORLD_SIZE_CHUNKS};
 use crate::generation::GenerationParams;
 
 /// Магическое число для идентификации файлов сохранений
-pub const SAVE_MAGIC: &[u8; 4] = b"VXLS"; // Voxel Save
+pub const SAVE_MAGIC: &[u8; 4] = b"TXLS"; // Torxel World Save
 
 /// Текущая версия формата сохранений
 pub const SAVE_FORMAT_VERSION: u32 = 1;
@@ -22,17 +22,17 @@ pub const SAVE_FORMAT_VERSION: u32 = 1;
 #[repr(C)]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SaveHeader {
-    /// Магическое число "VXLS"
+    /// Магическое число "TXLS" (Torxel World Save)
     pub magic: [u8; 4],
     
-    /// Версия формата保存ения
+    /// Версия формата сохранения
     pub version: u32,
     
     /// Сид мира
     pub seed: u64,
     
-    /// Размер мира в чанках
-    pub world_size_chunks: u32,
+    /// Размер мира в блоках по XZ (должен быть кратен CHUNK_SIZE_XZ)
+    pub world_size_blocks_xz: u32,
     
     /// Количество чанков в сохранении
     pub chunk_count: u32,
@@ -46,8 +46,20 @@ pub struct SaveHeader {
     /// Дополнительная информация (имя мира, описание)
     pub name: String,
     
+    /// Позиция камеры X (смещение мира)
+    pub camera_position_x: f64,
+    
+    /// Позиция камеры Z (смещение мира)
+    pub camera_position_z: f64,
+    
+    /// Zoom камеры (0-7, где 0 = максимально близко, 7 = максимально далеко)
+    pub camera_zoom: u8,
+    
+    /// Rotation камеры (0-3, поворот на 90 градусов: 0=0°, 1=90°, 2=180°, 3=270°)
+    pub camera_rotation: u8,
+    
     /// Резервные байты для будущего расширения
-    pub reserved: [u8; 32],
+    pub reserved: [u8; 26],
 }
 
 impl Default for SaveHeader {
@@ -56,12 +68,16 @@ impl Default for SaveHeader {
             magic: *SAVE_MAGIC,
             version: SAVE_FORMAT_VERSION,
             seed: 0,
-            world_size_chunks: WORLD_SIZE_CHUNKS as u32,
+            world_size_blocks_xz: 256, // 16 чанков × 16 блоков по умолчанию
             chunk_count: 0,
             created_at: 0,
             modified_at: 0,
             name: String::new(),
-            reserved: [0; 32],
+            camera_position_x: 0.0,
+            camera_position_z: 0.0,
+            camera_zoom: 3,
+            camera_rotation: 0,
+            reserved: [0; 26],
         }
     }
 }
@@ -78,7 +94,7 @@ impl SaveHeader {
     }
 
     /// Создать новый заголовок для сохранения
-    pub fn new(seed: u64, name: String) -> Self {
+    pub fn new(seed: u64, name: String, world_size_blocks_xz: u32) -> Self {
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
@@ -88,12 +104,16 @@ impl SaveHeader {
             magic: *SAVE_MAGIC,
             version: SAVE_FORMAT_VERSION,
             seed,
-            world_size_chunks: WORLD_SIZE_CHUNKS as u32,
+            world_size_blocks_xz,
             chunk_count: 0,
             created_at: now,
             modified_at: now,
             name,
-            reserved: [0; 32],
+            camera_position_x: 0.0,
+            camera_position_z: 0.0,
+            camera_zoom: 3,
+            camera_rotation: 0,
+            reserved: [0; 26],
         }
     }
 }
@@ -294,8 +314,15 @@ pub fn delete_save<P: AsRef<Path>>(path: P) -> Result<(), SaveError> {
 
 /// Получить стандартную директорию для сохранений
 pub fn get_saves_directory() -> PathBuf {
-    // В реальном проекте использовать dirs crate
-    PathBuf::from("./saves")
+    // Использовать dirs crate для кроссплатформенных путей
+    let app_name = "torxel_world";
+    
+    if let Some(data_dir) = dirs::data_local_dir() {
+        data_dir.join(app_name).join("saves")
+    } else {
+        // Fallback: текущая директория
+        PathBuf::from("./saves")
+    }
 }
 
 #[cfg(test)]
@@ -305,10 +332,13 @@ mod tests {
 
     #[test]
     fn test_header_creation() {
-        let header = SaveHeader::new(12345, "Test World".to_string());
+        let header = SaveHeader::new(12345, "Test World".to_string(), 256);
         assert!(header.is_valid());
         assert_eq!(header.seed, 12345);
         assert_eq!(header.name, "Test World");
+        assert_eq!(header.world_size_blocks_xz, 256);
+        assert_eq!(header.camera_zoom, 3);
+        assert_eq!(header.camera_rotation, 0);
     }
 
     #[test]

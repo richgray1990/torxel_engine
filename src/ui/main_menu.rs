@@ -31,8 +31,8 @@ pub struct MainMenuState {
     /// Имя нового мира
     pub world_name_input: String,
     
-    /// Выбранный размер мира
-    pub world_size_selection: usize,
+    /// Выбранный размер мира в чанках (8, 16, 32, 64, 128, 256, 512)
+    pub world_size_chunks_selection: usize,
     
     /// Ошибка генерации/загрузки (если есть)
     pub error_message: Option<String>,
@@ -99,8 +99,8 @@ fn main_menu_ui(
             ui.add_space(50.0);
             
             // Заголовок
-            ui.heading(egui::RichText::new("Voxel World Engine").size(40.0));
-            ui.label("Высокопроизводительный воксельный движок с физикой");
+            ui.heading(egui::RichText::new("Torxel World").size(40.0));
+            ui.label("Высокопроизводительный воксельный движок с физикой DHIMMS");
             
             ui.add_space(30.0);
             
@@ -116,12 +116,24 @@ fn main_menu_ui(
                     ui.text_edit_singleline(&mut state.seed_input);
                 });
                 
-                ui.label("Размер мира:");
+                ui.label("Размер мира (чанков по XZ, округляется до кратного 16):");
                 ui.horizontal(|ui| {
-                    if ui.radio_value(&mut state.world_size_selection, 8, "Малый (8³ чанков)").clicked() {}
-                    if ui.radio_value(&mut state.world_size_selection, 16, "Средний (16³)").clicked() {}
-                    if ui.radio_value(&mut state.world_size_selection, 32, "Большой (32³)").clicked() {}
+                    if ui.radio_value(&mut state.world_size_chunks_selection, 8, "8×8 (мини)").clicked() {}
+                    if ui.radio_value(&mut state.world_size_chunks_selection, 16, "16×16 (стандарт)").clicked() {}
+                    if ui.radio_value(&mut state.world_size_chunks_selection, 32, "32×32 (большой)").clicked() {}
+                    if ui.radio_value(&mut state.world_size_chunks_selection, 64, "64×64 (огромный)").clicked() {}
+                    if ui.radio_value(&mut state.world_size_chunks_selection, 128, "128×128 (гигантский)").clicked() {}
+                    if ui.radio_value(&mut state.world_size_chunks_selection, 256, "256×256 (экстремальный)").clicked() {}
+                    if ui.radio_value(&mut state.world_size_chunks_selection, 512, "512×512 (максимум)").clicked() {}
                 });
+                
+                ui.add_space(10.0);
+                
+                // Показать размер в блоках
+                let blocks_per_chunk = 16; // CHUNK_SIZE_XZ
+                let total_blocks = state.world_size_chunks_selection * blocks_per_chunk;
+                ui.label(format!("Всего блоков: {}×{} = {}", 
+                    total_blocks, total_blocks, total_blocks * total_blocks));
                 
                 ui.add_space(10.0);
                 
