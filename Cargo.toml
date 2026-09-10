@@ -8,9 +8,6 @@ resolver = "2"
 # Core engine
 bevy = { version = "0.19.1" }
 
-# UI для главного меню и редактора
-bevy_egui = "0.42"
-
 # Сериализация сохранений
 serde = { version = "1.0", features = ["derive"] }
 bincode = "1.3"

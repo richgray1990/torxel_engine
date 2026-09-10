@@ -1,7 +1,16 @@
-use bevy::prelude::*;
+use bevy::{prelude::*, shader::ShaderRef};
 use bevy::render::render_resource::*;
-use bevy::render::renderer::*;
 use std::hash::Hash;
+
+use bevy::{
+    pbr::{Material, MaterialPipeline, MaterialPipelineKey},
+    prelude::*, // Отсюда берется Handle
+    render::{
+        mesh::MeshVertexBufferLayoutRef,
+        render_resource::{AsBindGroup, RenderPipelineDescriptor, SpecializedMeshPipelineError},
+    },
+};
+
 
 /// Компонент-маркер для корня мира (сдвигается при движении камеры)
 #[derive(Component)]
@@ -55,11 +64,12 @@ pub struct SolidMaterial {
 }
 
 impl Material for SolidMaterial {
-    fn fragment_shader() -> bevy::render::render_resource::ShaderRef {
+
+    fn fragment_shader() -> ShaderRef{
         "shaders/solid_outline.wgsl".into()
     }
 
-    fn vertex_shader() -> bevy::render::render_resource::ShaderRef {
+    fn vertex_shader() -> ShaderRef {
         "shaders/solid_outline.wgsl".into()
     }
 }

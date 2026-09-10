@@ -341,11 +341,11 @@ mod tests {
 
     #[test]
     fn test_serialized_chunk() {
-        let chunk = Chunk::new(ChunkPos::new(0, 0, 0));
+        let chunk = Chunk::new(ChunkPos::new(0, 0));
         let serialized = SerializedChunk::from_chunk(&chunk);
         
         assert_eq!(serialized.pos_x, 0);
-        assert_eq!(serialized.cells.len(), CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE * std::mem::size_of::<Cell>());
+        assert_eq!(serialized.cells.len(), CHUNK_SIZE_XZ * CHUNK_SIZE_XZ * 64 * std::mem::size_of::<Cell>());
         
         let restored = serialized.to_chunk().unwrap();
         assert_eq!(restored.pos.x, 0);
@@ -359,7 +359,7 @@ mod tests {
         let header = SaveHeader::new(42, "Test".to_string());
         let mut chunks = Vec::new();
         
-        let mut chunk = Chunk::new(ChunkPos::new(0, 0, 0));
+        let mut chunk = Chunk::new(ChunkPos::new(0, 0));
         chunk.set(0, 0, 0, Cell::new(Material::Stone));
         chunks.push(chunk);
         

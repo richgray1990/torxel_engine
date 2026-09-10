@@ -7,7 +7,6 @@
 //! - Безопасность: #[repr(C)], квантование, битовые флаги
 
 use bevy::prelude::*;
-use bevy_egui::EguiPlugin;
 use bevy::log::{info, LogPlugin};
 
 // Модули движка
@@ -15,11 +14,9 @@ mod core;
 mod utils;
 mod generation;
 mod serialization;
-mod ui;
 mod render;
 
 use core::{ChunkManager, Cell, Material};
-use ui::{MainMenuPlugin, AppState, MainMenuState};
 
 fn main() {
     App::new()
@@ -30,13 +27,7 @@ fn main() {
             custom_layer: |_| None,
             fmt_layer: |_| None,
         }))
-        
-        // Плагин egui для UI
-        .add_plugins(EguiPlugin { ui_render_order: bevy_egui::UiRenderOrder::BevyUiAboveEgui, bindless_mode_array_size: Default::default() })
-        
-        // Плагин главного меню
-        .add_plugins(MainMenuPlugin)
-        
+
         // Инициализация ресурсов
         .init_resource::<ChunkManager>()
         

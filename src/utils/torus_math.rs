@@ -21,17 +21,16 @@ pub const fn wrap_chunk_coord(coord: i32, world_size: i32) -> i32 {
 pub const fn wrap_cell_coords(x: i32, y: i32, z: i32, world_size: i32) -> (i32, i32, i32) {
     (
         wrap_cell_coord(x, world_size),
-        wrap_cell_coord(y, world_size),
+        y,
         wrap_cell_coord(z, world_size),
     )
 }
 
 /// Обернуть 3D координаты чанков
 #[inline]
-pub const fn wrap_chunk_coords(x: i32, y: i32, z: i32, world_size: i32) -> (i32, i32, i32) {
+pub const fn wrap_chunk_coords(x: i32, z: i32, world_size: i32) -> (i32, i32) {
     (
         wrap_chunk_coord(x, world_size),
-        wrap_chunk_coord(y, world_size),
         wrap_chunk_coord(z, world_size),
     )
 }

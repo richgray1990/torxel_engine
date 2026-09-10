@@ -158,11 +158,11 @@ impl TerrainGenerator {
         }
         
         // Проверка уровня моря
-        if y as f64 <= self.params.sea_level as f64 && cell.material == Material::Air as u8 {
+        if y as f32 <= self.params.sea_level as f32 && cell.material == Material::Air as u8 {
             cell = Cell::WATER;
             // Установить давление воды на глубине
-            let depth = self.params.sea_level as f64 - y as f64;
-            cell.set_pressure(101320.0 + depth * 9800.0); // 1 атм + гидростатическое
+            let depth = self.params.sea_level as f32 - y as f32;
+            cell.set_pressure(101320.0 as f32 + depth * 9800.0 as f32); // 1 атм + гидростатическое
         }
         
         // Установить температуру в зависимости от высоты

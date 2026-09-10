@@ -172,7 +172,7 @@ pub struct Cell {
     pub phase_state: u8,
     
     /// Резервные байты для выравнивания до 48 байт
-    _padding: [u8; 1],
+    _padding: [u8; 31],
 }
 
 // Проверка размера на этапе компиляции
@@ -199,7 +199,7 @@ impl Cell {
         density: 128,
         heat_capacity: 128,
         phase_state: 0,
-        _padding: [0; 1],
+        _padding: [0; 31],
     };
 
     /// Ячейка вакуума
@@ -216,7 +216,7 @@ impl Cell {
         density: 0,
         heat_capacity: 0,
         phase_state: 0,
-        _padding: [0; 1],
+        _padding: [0; 31],
     };
 
     /// Ячейка камня
@@ -230,10 +230,10 @@ impl Cell {
         velocity_x: 0,
         velocity_y: 0,
         velocity_z: 0,
-        density: 512, // высокая плотность
-        heat_capacity: 1200, // высокая теплоёмкость
+        density: 200, // высокая плотность
+        heat_capacity: 200, // высокая теплоёмкость
         phase_state: 2, // жидкая фаза
-        _padding: [0; 1],
+        _padding: [0; 31],
     };
 
     /// Ячейка воды (для DHIMMS)
@@ -250,7 +250,7 @@ impl Cell {
         density: 255, // высокая плотность
         heat_capacity: 200, // высокая теплоёмкость
         phase_state: 1, // жидкая фаза
-        _padding: [0; 1],
+        _padding: [0; 31],
     };
 
     /// Создать новую ячейку с заданным материалом
@@ -299,7 +299,7 @@ impl Cell {
             density,
             heat_capacity,
             phase_state: 0,
-            _padding: [0; 1],
+            _padding: [0; 31],
         }
     }
 

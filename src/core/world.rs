@@ -172,9 +172,9 @@ impl ChunkManager {
     /// Нормализовать позицию чанка через торический wrapping
     #[inline]
     fn normalize_chunk_pos(&self, pos: ChunkPos) -> ChunkPos {
-        let (nx, ny, nz) = torus_math::wrap_chunk_coords(
-            pos.x, 
-            pos.z, 
+        let (nx, ny) = torus_math::wrap_chunk_coords(
+            pos.x,
+            pos.z,
             self.world_size_chunks_xz as i32
         );
         ChunkPos::new(nx, ny)
