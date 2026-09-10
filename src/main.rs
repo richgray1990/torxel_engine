@@ -8,6 +8,7 @@
 
 use bevy::prelude::*;
 use bevy::log::{info, LogPlugin};
+use bevy::state::app::StatesPlugin;
 
 // Модули движка
 mod core;
@@ -15,8 +16,12 @@ mod utils;
 mod generation;
 mod serialization;
 mod render;
+mod ui;
+mod game_state;
 
 use core::{ChunkManager, Cell, Material};
+use game_state::GameState;
+use ui::main_menu::{setup_main_menu, handle_menu_actions, despawn_main_menu};
 
 fn main() {
     App::new()
@@ -27,12 +32,19 @@ fn main() {
             custom_layer: |_| None,
             fmt_layer: |_| None,
         }))
-
+        // Плагин состояний
+        .add_plugins(StatesPlugin)
+        // Инициализация состояний игры
+        .init_state::<GameState>()
         // Инициализация ресурсов
         .init_resource::<ChunkManager>()
         
         // Системы
         .add_systems(Startup, setup_camera)
+        // Системы главного меню
+        .add_systems(OnEnter(GameState::MainMenu), setup_main_menu)
+        .add_systems(Update, handle_menu_actions.run_if(in_state(GameState::MainMenu)))
+        .add_systems(OnExit(GameState::MainMenu), despawn_main_menu)
         .run();
 }
 
