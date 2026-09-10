@@ -33,8 +33,6 @@ fn main() {
         
         // Системы
         .add_systems(Startup, setup_camera)
-        .add_systems(Update, handle_playing_state.run_if(in_state(AppState::Playing)))
-        
         .run();
 }
 
@@ -47,35 +45,4 @@ fn setup_camera(mut commands: Commands) {
     ));
     
     info!("Camera initialized");
-}
-
-/// Обработка состояния игры (заглушка для v1)
-fn handle_playing_state(
-    mut commands: Commands,
-    mut chunk_manager: ResMut<ChunkManager>,
-    state: Res<State<AppState>>,
-    mut next_state: ResMut<NextState<AppState>>,
-) {
-    // В v1 просто показываем сообщение и возвращаемся в меню
-    // В v2 здесь будет основная симуляция
-    
-    static mut SHOWN_INFO: bool = false;
-    
-    unsafe {
-        if !SHOWN_INFO {
-            info!("=== Voxel World v1 - Ядро ===");
-            info!("Мир использует торическую топологию (без границ)");
-            info!("Размер чанка: {}x{}x64 ячеек", core::CHUNK_SIZE_XZ, core::CHUNK_SIZE_XZ);
-            info!("Размер мира: {}x{} чанков", core::WORLD_SIZE_CHUNKS_XZ, core::WORLD_SIZE_CHUNKS_XZ);
-            info!("Общий размер мира: {}x{}x64 ячеек", core::WORLD_SIZE_CELLS_XZ, core::WORLD_SIZE_CELLS_XZ);
-            
-            // Тестовая генерация нескольких чанков
-            
-            
-            SHOWN_INFO = true;
-        }
-    }
-    
-    // Вернуться в меню через несколько кадров (для демонстрации)
-    // В реальной игре здесь будет геймплей
 }
