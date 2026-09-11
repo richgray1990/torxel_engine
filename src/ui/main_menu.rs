@@ -17,20 +17,27 @@ pub struct ExitButton;
 pub fn setup_main_menu(mut commands: Commands) {
     // Корневой узел UI (центрирование по вертикали и горизонтали)
     commands.spawn((
-        NodeBundle {
-            style: Style {
-                width: Val::Percent(100.0),
-                height: Val::Percent(100.0),
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::Center,
-                flex_direction: FlexDirection::Column,
-                row_gap: Val::Px(20.0),
-                ..default()
-            },
+        Node{
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0),
+            align_items: AlignItems::Center,
+            justify_content: JustifyContent::Center,
+            flex_direction: FlexDirection::Column,
+            row_gap: Val::Px(20.0),
             ..default()
         },
-        MainMenuRoot,
-    )).with_children(|parent| {
+        ))
+        .with_children(|parent| {
+                // Заголовок
+                parent.spawn((
+                    Text::new("Voxel World Engine"),
+                    TextFont { font_size: FontSize::Px(48.0), ..default()},
+                ));
+        });
+        
+
+        /* 
+    .with_children(|parent| {
         // Заголовок
         parent.spawn((
             TextBundle::from_section(
@@ -96,13 +103,14 @@ pub fn setup_main_menu(mut commands: Commands) {
                 },
             ));
         });
-    });
+    }));
+ */
 }
 
 /// Система обработки нажатий кнопок меню
 pub fn handle_menu_actions(
     mut next_state: ResMut<NextState<GameState>>,
-    mut app_exit_events: EventWriter<AppExit>,
+    mut app_exit_events: MessageWriter<AppExit>,
     play_interactions: Query<&Interaction, (Changed<Interaction>, With<PlayButton>)>,
     exit_interactions: Query<&Interaction, (Changed<Interaction>, With<ExitButton>)>,
 ) {
@@ -114,7 +122,7 @@ pub fn handle_menu_actions(
 
     for interaction in &exit_interactions {
         if *interaction == Interaction::Pressed {
-            app_exit_events.send(AppExit::Success);
+            app_exit_events.write(AppExit::Success);
         }
     }
 }
@@ -125,6 +133,6 @@ pub fn despawn_main_menu(
     menu_query: Query<Entity, Or<(With<MainMenuRoot>, With<PlayButton>, With<ExitButton>)>>,
 ) {
     for entity in &menu_query {
-        commands.entity(entity).despawn_recursive();
+        commands.entity(entity).despawn();
     }
 }

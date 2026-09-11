@@ -21,7 +21,7 @@ mod game_state;
 
 use core::{ChunkManager, Cell, Material};
 use game_state::GameState;
-use ui::main_menu::{setup_main_menu, handle_menu_actions, despawn_main_menu};
+use ui::*;
 
 fn main() {
     App::new()
@@ -33,7 +33,7 @@ fn main() {
             fmt_layer: |_| None,
         }))
         // Плагин состояний
-        .add_plugins(StatesPlugin)
+        //.add_plugins(StatesPlugin)
         // Инициализация состояний игры
         .init_state::<GameState>()
         // Инициализация ресурсов
